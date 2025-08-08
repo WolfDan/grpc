@@ -16,12 +16,13 @@ defmodule Grpc.Client.Adapters.Finch.StreamRequestProcess do
   end
 
   def consume(pid, msg) do
+    IO.inspect(:consume, label: __MODULE__)
     GenServer.cast(pid, {:consume, msg})
   end
 
   @impl true
   def init([path, client_headers, data]) do
-    request_process = RequestProcess.start_link(self(), path, client_headers, data)
+    {:ok, request_process} = RequestProcess.start_link(self(), path, client_headers, data)
 
     {:ok,
      %{

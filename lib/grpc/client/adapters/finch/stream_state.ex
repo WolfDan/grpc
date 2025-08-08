@@ -45,16 +45,16 @@ defmodule GRPC.Client.Adapters.Finch.StreamState do
 
   @impl true
   def handle_continue(:response, state) do
-    IO.inspect(:handle_continue, label: __MODULE__)
     no_items? = :queue.is_empty(state.items)
     without_from? = is_nil(state.from)
+    IO.inspect(state.items, label: "Items")
 
     cond do
       without_from? ->
         {:noreply, state}
 
       no_items? and state.done ->
-        GenServer.reply(state.from, nil)
+        GenServer.reply(state.from, :close)
         {:stop, :normal, state}
 
       no_items? ->
@@ -64,7 +64,6 @@ defmodule GRPC.Client.Adapters.Finch.StreamState do
         case :queue.out(state.items) do
           # The request was complete, we stop the process and return done
           {{:value, item}, new_queue} ->
-            IO.inspect("item : #{inspect(item)}", label: __MODULE__)
             GenServer.reply(state.from, item)
             {:noreply, %{state | items: new_queue}}
         end

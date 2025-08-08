@@ -199,9 +199,7 @@ defmodule Interop.Client do
       ch
       |> Grpc.Testing.TestService.Stub.full_duplex_call(metadata: metadata)
       |> GRPC.Stub.send_request(req, end_stream: true)
-      # |> IO.inspect(label: :send_request_value)
       |> GRPC.Stub.recv(return_headers: true)
-      |> IO.inspect(label: :recv_value)
       |> process_full_duplex_response()
 
     reply = String.duplicate(<<0>>, 314_159)
@@ -284,7 +282,7 @@ defmodule Interop.Client do
       |> GRPC.Stub.send_request(req)
       |> GRPC.Stub.recv()
 
-      IO.inspect(:next, label: :HGGGGGGGGGGGG)
+    IO.inspect(:next, label: :HGGGGGGGGGGGG)
 
     {:ok, _} = Enum.at(res_enum, 0)
     stream = GRPC.Stub.cancel(stream)

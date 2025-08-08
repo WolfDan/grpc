@@ -11,11 +11,10 @@ defmodule Grpc.Client.Adapters.Finch.RequestProcess do
 
   @impl true
   def init([stream_request_pid, path, client_headers, data]) do
+    IO.inspect(:init, label: __MODULE__)
     req = Finch.build(:post, path, client_headers, data)
 
     stream_ref = Finch.async_request(req, @finch_instance_name)
-
-    Process.monitor(stream_request_pid)
 
     {:ok,
      %{
@@ -57,7 +56,7 @@ defmodule Grpc.Client.Adapters.Finch.RequestProcess do
 
   @impl true
   def handle_info({ref, {:error, exception}}, %{stream_ref: ref} = state) do
-    IO.inspect(exception, label: __MODULE__)
+    IO.inspect(:error, label: __MODULE__)
     StreamRequestProcess.consume(state.stream_request_pid, {:error, exception})
     {:stop, :normal, state}
   end

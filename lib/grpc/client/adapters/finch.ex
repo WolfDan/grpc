@@ -131,19 +131,19 @@ defmodule GRPC.Client.Adapters.Finch do
         message,
         opts
       ) do
-    IO.inspect(:send_data)
+    IO.inspect(message, label: :send_data)
     {:ok, data, _} = GRPC.Message.to_data(message, opts)
+
+    CustomStream.add_item(stream_state_pid, data)
 
     if opts[:send_end_stream] do
       # This synchronously sends the final data and closes the stream. Correct.
       IO.inspect(:send_end_stream)
-      CustomStream.add_item(stream_state_pid, data)
+
       CustomStream.close(stream_state_pid)
-      stream
-    else
-      CustomStream.add_item(stream_state_pid, data)
-      stream
     end
+
+    stream
   end
 
   @impl true
@@ -206,10 +206,10 @@ defmodule GRPC.Client.Adapters.Finch do
 
     response = response_data_stream(stream, stream_request_pid, opts)
 
-    with {:headers, headers} <-
-           Enum.at(response, 0) |> IO.inspect(label: :server_stream_response_headers) do
-      IO.inspect(response)
+    IO.inspect(response, label: :bidirectional_stream)
+    IO.inspect(opts[:return_headers])
 
+    with {:headers, headers} <- Enum.at(response, 0) do
       if opts[:return_headers] do
         {:ok, response, %{headers: headers}}
       else
@@ -226,12 +226,10 @@ defmodule GRPC.Client.Adapters.Finch do
        when request_type in [:client_stream, :unary] do
     IO.inspect(:client_stream)
 
-    response =
-      stream
-      |> response_data_stream(stream_request_pid, opts)
-      |> Enum.to_list()
+    response = response_data_stream(stream, stream_request_pid, opts)
 
     with {:headers, headers} <- Enum.at(response, 0),
+         response <- Enum.to_list(response),
          :ok <- check_for_error(response) do
       data = Keyword.fetch!(response, :ok)
 
@@ -253,20 +251,12 @@ defmodule GRPC.Client.Adapters.Finch do
       opts: opts
     }
 
-    Stream.resource(
-      fn -> state end,
-      fn acc ->
-        case next_response(acc) do
-          {nil, acc} -> {:halt, acc}
-          {value, acc} -> {[value], acc}
-        end
-      end,
-      fn acc ->
-        IO.inspect("Closing stream resource")
-
-        GenServer.stop(acc.stream_request_pid, :normal)
+    Stream.unfold(state, fn state ->
+      case next_response(state) do
+        {nil, _acc} -> nil
+        {value, acc} -> {value, acc}
       end
-    )
+    end)
   end
 
   defp next_response(state) do

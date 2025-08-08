@@ -31,18 +31,18 @@ defmodule InteropTestRunner do
       # Client.large_unary2!(ch)
       # Client.client_compressed_unary!(ch)
       # Client.server_compressed_unary!(ch)
-      Client.client_streaming!(ch)
+      # Client.client_streaming!(ch)
       # Client.client_compressed_streaming!(ch)
       # Client.server_streaming!(ch)
       # Client.server_compressed_streaming!(ch)
         # Client.ping_pong!(ch)
       # Client.empty_stream!(ch)
-        # Client.custom_metadata!(ch)
+      # Client.custom_metadata!(ch)
       # Client.status_code_and_message!(ch)
       # Client.unimplemented_service!(ch)
       # Client.cancel_after_begin!(ch)
         # Client.cancel_after_first_response!(ch)
-        # Client.timeout_on_sleeping_server!(ch)
+        Client.timeout_on_sleeping_server!(ch)
     end
     :ok
   end
