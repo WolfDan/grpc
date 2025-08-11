@@ -3,15 +3,17 @@ defmodule Grpc.Client.Adapters.Finch.StreamRequestProcess do
 
   alias Grpc.Client.Adapters.Finch.RequestProcess
 
-  def start_link(path, client_headers, data \\ nil) do
-    GenServer.start_link(__MODULE__, [path, client_headers, data])
+  def start_link(path, client_headers, data \\ nil, opts \\ []) do
+    GenServer.start_link(__MODULE__, [path, client_headers, data, opts])
   end
 
   def close(pid) do
+    IO.inspect(:close, label: __MODULE__)
     GenServer.call(pid, :close)
   end
 
   def next_response(pid) do
+    IO.inspect(:next_response, label: __MODULE__)
     GenServer.call(pid, :next_response)
   end
 
@@ -21,8 +23,8 @@ defmodule Grpc.Client.Adapters.Finch.StreamRequestProcess do
   end
 
   @impl true
-  def init([path, client_headers, data]) do
-    {:ok, request_process} = RequestProcess.start_link(self(), path, client_headers, data)
+  def init([path, client_headers, data, opts]) do
+    {:ok, request_process} = RequestProcess.start_link(self(), path, client_headers, data, opts)
 
     {:ok,
      %{
@@ -65,6 +67,11 @@ defmodule Grpc.Client.Adapters.Finch.StreamRequestProcess do
 
       true ->
         case :queue.out(state.responses) do
+          {{:value, :done}, _} ->
+            IO.inspect("STOPING NORMALLY")
+            GenServer.reply(state.from, :done)
+            {:stop, :normal, state}
+
           # Return the new item
           {{:value, item}, new_queue} ->
             GenServer.reply(state.from, item)

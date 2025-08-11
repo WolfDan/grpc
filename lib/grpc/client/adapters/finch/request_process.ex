@@ -5,31 +5,34 @@ defmodule Grpc.Client.Adapters.Finch.RequestProcess do
 
   @finch_instance_name Finch.GRPC
 
-  def start_link(stream_request_pid, path, client_headers, data \\ nil) do
-    GenServer.start_link(__MODULE__, [stream_request_pid, path, client_headers, data])
+  def start_link(stream_request_pid, path, client_headers, data \\ nil, opts \\ []) do
+    GenServer.start_link(__MODULE__, [stream_request_pid, path, client_headers, data, opts])
   end
 
   @impl true
-  def init([stream_request_pid, path, client_headers, data]) do
+  def init([stream_request_pid, path, client_headers, data, opts]) do
     IO.inspect(:init, label: __MODULE__)
+
+    timeout = Keyword.get(opts, :timeout, :infinity)
+
     req = Finch.build(:post, path, client_headers, data)
 
-    stream_ref = Finch.async_request(req, @finch_instance_name)
+    stream_ref =
+      Finch.async_request(req, @finch_instance_name, receive_timeout: timeout)
 
     {:ok,
      %{
        stream_ref: stream_ref,
        stream_request_pid: stream_request_pid,
        recieved_headers: false,
-       responses: :queue.new(),
-       from: nil
-     }}
+       timeout: timeout
+     }, timeout}
   end
 
   @impl true
   def handle_info({ref, {:status, 200}}, %{stream_ref: ref} = state) do
     IO.inspect(:status, label: __MODULE__)
-    {:noreply, state}
+    {:noreply, state, state.timeout}
   end
 
   @impl true
@@ -44,14 +47,14 @@ defmodule Grpc.Client.Adapters.Finch.RequestProcess do
       end
 
     StreamRequestProcess.consume(state.stream_request_pid, msg)
-    {:noreply, %{state | recieved_headers: true}}
+    {:noreply, %{state | recieved_headers: true}, state.timeout}
   end
 
   @impl true
   def handle_info({ref, {:data, data}}, %{stream_ref: ref} = state) do
     IO.inspect(:data, label: __MODULE__)
     StreamRequestProcess.consume(state.stream_request_pid, {:data, data})
-    {:noreply, state}
+    {:noreply, state, state.timeout}
   end
 
   @impl true
@@ -65,6 +68,13 @@ defmodule Grpc.Client.Adapters.Finch.RequestProcess do
   def handle_info({ref, :done}, %{stream_ref: ref} = state) do
     IO.inspect(:done, label: __MODULE__)
     StreamRequestProcess.consume(state.stream_request_pid, :done)
+    {:stop, :normal, state}
+  end
+
+  @impl true
+  def handle_info(:timeout, state) do
+    IO.inspect(:timeout, label: __MODULE__)
+    StreamRequestProcess.consume(state.stream_request_pid, {:error, :timeout})
     {:stop, :normal, state}
   end
 end

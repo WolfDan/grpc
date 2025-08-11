@@ -109,14 +109,14 @@ defmodule GRPC.Client.Adapters.Finch do
     do: raise("Can't start a client stream without a connection process")
 
   def send_headers(stream, opts) do
-    IO.inspect(:send_headers)
+    IO.inspect(opts, label: :send_headers)
     headers = GRPC.Transport.HTTP2.client_headers_without_reserved(stream, opts)
     {:ok, {body_stream, pid}} = CustomStream.start()
 
     path = get_full_path(stream)
 
     {:ok, stream_request_pid} =
-      StreamRequestProcess.start_link(path, headers, {:stream, body_stream})
+      StreamRequestProcess.start_link(path, headers, {:stream, body_stream}, opts)
 
     GRPC.Client.Stream.put_payload(stream, :stream_request_pid, stream_request_pid)
     |> GRPC.Client.Stream.put_payload(:stream_state_pid, pid)
@@ -131,7 +131,7 @@ defmodule GRPC.Client.Adapters.Finch do
         message,
         opts
       ) do
-    IO.inspect(message, label: :send_data)
+    IO.inspect(:send_data)
     {:ok, data, _} = GRPC.Message.to_data(message, opts)
 
     CustomStream.add_item(stream_state_pid, data)
@@ -207,7 +207,7 @@ defmodule GRPC.Client.Adapters.Finch do
     response = response_data_stream(stream, stream_request_pid, opts)
 
     IO.inspect(response, label: :bidirectional_stream)
-    IO.inspect(opts[:return_headers])
+    IO.inspect(opts[:return_headers], label: :return_headers)
 
     with {:headers, headers} <- Enum.at(response, 0) do
       if opts[:return_headers] do
@@ -252,10 +252,7 @@ defmodule GRPC.Client.Adapters.Finch do
     }
 
     Stream.unfold(state, fn state ->
-      case next_response(state) do
-        {nil, _acc} -> nil
-        {value, acc} -> {value, acc}
-      end
+      next_response(state)
     end)
   end
 
@@ -267,7 +264,7 @@ defmodule GRPC.Client.Adapters.Finch do
 
   defp read_stream({header_or_trailer, headers}, state)
        when header_or_trailer in [:headers, :trailers] do
-    IO.inspect(header_or_trailer)
+    IO.inspect(header_or_trailer, label: :read_headers_NOW)
 
     state = %{state | grpc_stream: check_compression(headers, state.grpc_stream)}
 
@@ -298,14 +295,24 @@ defmodule GRPC.Client.Adapters.Finch do
     end
   end
 
+  defp read_stream({:error, :timeout} = error, state) do
+    IO.inspect(:error_ref_timeout)
+
+    {{:error,
+      GRPC.RPCError.exception(
+        GRPC.Status.deadline_exceeded(),
+        "timeout when waiting for server"
+      )}, state}
+  end
+
   defp read_stream({:error, _} = error, state) do
     IO.inspect(:error_ref)
     {error, state}
   end
 
-  defp read_stream(:done, state) do
+  defp read_stream(:done, _state) do
     IO.inspect(:done)
-    {nil, state}
+    nil
   end
 
   defp check_for_error(responses) do

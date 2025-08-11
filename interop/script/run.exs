@@ -31,7 +31,7 @@ defmodule InteropTestRunner do
       # Client.large_unary2!(ch)
       # Client.client_compressed_unary!(ch)
       # Client.server_compressed_unary!(ch)
-      # Client.client_streaming!(ch)
+      Client.client_streaming!(ch)
       # Client.client_compressed_streaming!(ch)
       # Client.server_streaming!(ch)
       # Client.server_compressed_streaming!(ch)
@@ -42,7 +42,7 @@ defmodule InteropTestRunner do
       # Client.unimplemented_service!(ch)
       # Client.cancel_after_begin!(ch)
         # Client.cancel_after_first_response!(ch)
-        Client.timeout_on_sleeping_server!(ch)
+      # Client.timeout_on_sleeping_server!(ch)
     end
     :ok
   end
