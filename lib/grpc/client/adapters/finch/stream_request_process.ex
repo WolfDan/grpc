@@ -8,17 +8,14 @@ defmodule Grpc.Client.Adapters.Finch.StreamRequestProcess do
   end
 
   def close(pid) do
-    IO.inspect(:close, label: __MODULE__)
     GenServer.call(pid, :close)
   end
 
   def next_response(pid) do
-    IO.inspect(:next_response, label: __MODULE__)
-    GenServer.call(pid, :next_response)
+    GenServer.call(pid, :next_response, :infinity)
   end
 
   def consume(pid, msg) do
-    IO.inspect(:consume, label: __MODULE__)
     GenServer.cast(pid, {:consume, msg})
   end
 
@@ -41,14 +38,12 @@ defmodule Grpc.Client.Adapters.Finch.StreamRequestProcess do
 
   @impl true
   def handle_call(:close, from, state) do
-    IO.inspect(state.responses, label: "Closing stream request")
     responses = :queue.in(:done, state.responses)
     {:noreply, %{state | responses: responses, from: from}, {:continue, :produce_response}}
   end
 
   @impl true
   def handle_cast({:consume, msg}, state) do
-    IO.inspect(:consume, label: __MODULE__)
     responses = :queue.in(msg, state.responses)
     {:noreply, %{state | responses: responses}, {:continue, :produce_response}}
   end
@@ -68,7 +63,6 @@ defmodule Grpc.Client.Adapters.Finch.StreamRequestProcess do
       true ->
         case :queue.out(state.responses) do
           {{:value, :done}, _} ->
-            IO.inspect("STOPING NORMALLY")
             GenServer.reply(state.from, :done)
             {:stop, :normal, state}
 

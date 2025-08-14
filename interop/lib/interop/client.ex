@@ -139,15 +139,11 @@ defmodule Interop.Client do
       )
     end
 
-    Logger.info("Run ping_pong! 3")
     GRPC.Stub.send_request(stream, req.(31415, 27182))
-    Logger.info("Run ping_pong! 3.1")
     {:ok, res_enum} = GRPC.Stub.recv(stream)
-    Logger.info("Run ping_pong! 4")
     reply = String.duplicate(<<0>>, 31415)
 
     {:ok, %{payload: %{body: ^reply}}} = Enum.at(res_enum, 0)
-     Logger.info("Run ping_pong! 5")
 
     Enum.each([{9, 8}, {2653, 1828}, {58979, 45904}], fn {res, payload} ->
       GRPC.Stub.send_request(stream, req.(res, payload))
@@ -156,7 +152,6 @@ defmodule Interop.Client do
       {:ok, %{payload: %{body: ^reply}}} = Enum.at(res_enum, 0)
     end)
 
-    Logger.info("Run ping_pong! 6")
 
     GRPC.Stub.end_stream(stream)
   end
@@ -276,15 +271,16 @@ defmodule Interop.Client do
 
     stream = Grpc.Testing.TestService.Stub.full_duplex_call(ch)
 
-    IO.inspect(:ok , label: :HGGGGGGGGGGGG)
+
     {:ok, res_enum} =
       stream
       |> GRPC.Stub.send_request(req)
       |> GRPC.Stub.recv()
 
-    IO.inspect(:next, label: :HGGGGGGGGGGGG)
+
 
     {:ok, _} = Enum.at(res_enum, 0)
+
     stream = GRPC.Stub.cancel(stream)
     {:error, %GRPC.RPCError{status: 1}} = GRPC.Stub.recv(stream)
   end

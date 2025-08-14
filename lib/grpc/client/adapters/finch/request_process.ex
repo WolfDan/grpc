@@ -11,8 +11,6 @@ defmodule Grpc.Client.Adapters.Finch.RequestProcess do
 
   @impl true
   def init([stream_request_pid, path, client_headers, data, opts]) do
-    IO.inspect(:init, label: __MODULE__)
-
     timeout = Keyword.get(opts, :timeout, :infinity)
 
     req = Finch.build(:post, path, client_headers, data)
@@ -31,14 +29,11 @@ defmodule Grpc.Client.Adapters.Finch.RequestProcess do
 
   @impl true
   def handle_info({ref, {:status, 200}}, %{stream_ref: ref} = state) do
-    IO.inspect(:status, label: __MODULE__)
     {:noreply, state, state.timeout}
   end
 
   @impl true
   def handle_info({ref, {:headers, headers}}, %{stream_ref: ref} = state) do
-    IO.inspect(:headers, label: __MODULE__)
-
     msg =
       if state.recieved_headers do
         {:trailers, headers}
@@ -52,28 +47,24 @@ defmodule Grpc.Client.Adapters.Finch.RequestProcess do
 
   @impl true
   def handle_info({ref, {:data, data}}, %{stream_ref: ref} = state) do
-    IO.inspect(:data, label: __MODULE__)
     StreamRequestProcess.consume(state.stream_request_pid, {:data, data})
     {:noreply, state, state.timeout}
   end
 
   @impl true
   def handle_info({ref, {:error, exception}}, %{stream_ref: ref} = state) do
-    IO.inspect(:error, label: __MODULE__)
     StreamRequestProcess.consume(state.stream_request_pid, {:error, exception})
     {:stop, :normal, state}
   end
 
   @impl true
   def handle_info({ref, :done}, %{stream_ref: ref} = state) do
-    IO.inspect(:done, label: __MODULE__)
     StreamRequestProcess.consume(state.stream_request_pid, :done)
     {:stop, :normal, state}
   end
 
   @impl true
   def handle_info(:timeout, state) do
-    IO.inspect(:timeout, label: __MODULE__)
     StreamRequestProcess.consume(state.stream_request_pid, {:error, :timeout})
     {:stop, :normal, state}
   end

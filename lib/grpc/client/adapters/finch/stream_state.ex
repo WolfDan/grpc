@@ -1,22 +1,19 @@
 defmodule GRPC.Client.Adapters.Finch.StreamState do
   use GenServer
 
-  def start_link(_) do
+  def start_link(_opts \\ []) do
     GenServer.start_link(__MODULE__, :ok)
   end
 
   def add_item(pid, item) do
-    IO.inspect(:add_item, label: __MODULE__)
     GenServer.cast(pid, {:add_item, item})
   end
 
   def close(pid) do
-    IO.inspect(:close, label: __MODULE__)
     GenServer.cast(pid, :close)
   end
 
   def next_item(pid) do
-    IO.inspect(:next_item, label: __MODULE__)
     GenServer.call(pid, :next_item)
   end
 
@@ -58,13 +55,12 @@ defmodule GRPC.Client.Adapters.Finch.StreamState do
       true ->
         case :queue.out(state.items) do
           {{:value, :close}, _} ->
-            IO.inspect(:closing, label: __MODULE__)
             GenServer.reply(state.from, :close)
             {:stop, :normal, state}
 
           {{:value, item}, new_queue} ->
             GenServer.reply(state.from, item)
-            {:noreply, %{state | items: new_queue}}
+            {:noreply, %{state | from: nil, items: new_queue}}
         end
     end
   end
